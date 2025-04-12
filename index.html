@@ -1,0 +1,232 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2575.4">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Helvetica; min-height: 14.0px}
+  </style>
+</head>
+<body>
+<p class="p1">&lt;!DOCTYPE html&gt;</p>
+<p class="p1">&lt;html lang="nl"&gt;</p>
+<p class="p1">&lt;head&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;meta charset="UTF-8"&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;title&gt;Tikklok&lt;/title&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;style&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>body { font-family: Arial, sans-serif; text-align: center; margin-top: 40px; }</p>
+<p class="p1"><span class="Apple-converted-space">    </span>button { padding: 10px 20px; margin: 5px; font-size: 16px; }</p>
+<p class="p1"><span class="Apple-converted-space">    </span>#log, #totaal, #sessies { margin-top: 30px; max-width: 800px; margin-left: auto; margin-right: auto; text-align: left; }</p>
+<p class="p1"><span class="Apple-converted-space">    </span>.info { margin: 5px 0; }</p>
+<p class="p1"><span class="Apple-converted-space">    </span>table { width: 100%; border-collapse: collapse; margin-top: 10px; }</p>
+<p class="p1"><span class="Apple-converted-space">    </span>th, td { border: 1px solid #ccc; padding: 6px; text-align: left; }</p>
+<p class="p1"><span class="Apple-converted-space">    </span>.delete-btn { background: #f44336; color: white; border: none; padding: 4px 8px; cursor: pointer; }</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/style&gt;</p>
+<p class="p1">&lt;/head&gt;</p>
+<p class="p1">&lt;body&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;h1&gt;🕒 Tikklok&lt;/h1&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button onclick="startWork()"&gt;Start werk&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button onclick="startBreak()"&gt;Start pauze&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button onclick="endBreak()"&gt;Einde pauze&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button onclick="stopWork()"&gt;Stop werk&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button onclick="showAllSessions()"&gt;Toon sessies&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button onclick="exportCSV()"&gt;📁 Exporteer naar CSV&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>&lt;button onclick="clearAllData()"&gt;🗑️ Wissen&lt;/button&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;div id="log"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;div id="totaal"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;div id="sessies"&gt;&lt;/div&gt;</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;script&gt;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>let workStart = null;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>let workEnd = null;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>let breaks = [];</p>
+<p class="p1"><span class="Apple-converted-space">    </span>let currentBreakStart = null;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function formatTime(ms) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const h = Math.floor(ms / 3600000);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const m = Math.floor((ms % 3600000) / 60000);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const s = Math.floor((ms % 60000) / 1000);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>return `${h}u ${m}m ${s}s`;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function startWork() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>workStart = new Date();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>breaks = [];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>currentBreakStart = null;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>workEnd = null;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>updateLog("Werk gestart om " + workStart.toLocaleTimeString());</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function startBreak() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!workStart) return alert("Je moet eerst starten met werken!");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (currentBreakStart) return alert("Je bent al in pauze!");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>currentBreakStart = new Date();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>updateLog("Pauze gestart om " + currentBreakStart.toLocaleTimeString());</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function endBreak() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!currentBreakStart) return alert("Je bent niet in pauze!");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const breakEnd = new Date();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>breaks.push({ start: currentBreakStart, end: breakEnd });</p>
+<p class="p1"><span class="Apple-converted-space">      </span>updateLog("Pauze geëindigd om " + breakEnd.toLocaleTimeString());</p>
+<p class="p1"><span class="Apple-converted-space">      </span>currentBreakStart = null;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function stopWork() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!workStart) return alert("Je bent nog niet begonnen met werken!");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>workEnd = new Date();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (currentBreakStart) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>breaks.push({ start: currentBreakStart, end: workEnd });</p>
+<p class="p1"><span class="Apple-converted-space">        </span>currentBreakStart = null;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const worked = workEnd - workStart;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const pauseTotal = breaks.reduce((sum, b) =&gt; sum + (b.end - b.start), 0);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const netto = worked - pauseTotal;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>updateLog(`Werk gestopt om ${workEnd.toLocaleTimeString()}`);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>updateLog(`&lt;b&gt;Totale werktijd:&lt;/b&gt; ${formatTime(worked)}`);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>updateLog(`&lt;b&gt;Totaal pauze:&lt;/b&gt; ${formatTime(pauseTotal)}`);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>updateLog(`&lt;b&gt;Netto gewerkt:&lt;/b&gt; ${formatTime(netto)}`);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>saveSession({</p>
+<p class="p1"><span class="Apple-converted-space">        </span>start: workStart.toISOString(),</p>
+<p class="p1"><span class="Apple-converted-space">        </span>end: workEnd.toISOString(),</p>
+<p class="p1"><span class="Apple-converted-space">        </span>breaks: breaks.map(b =&gt; ({ start: b.start.toISOString(), end: b.end.toISOString() })),</p>
+<p class="p1"><span class="Apple-converted-space">        </span>netto: netto</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>showTotals();</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function updateLog(text) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const log = document.getElementById("log");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const p = document.createElement("p");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>p.className = "info";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>p.innerHTML = text;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>log.appendChild(p);</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function saveSession(session) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const dateKey = session.start.split("T")[0];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let data = JSON.parse(localStorage.getItem("tikklok") || "{}");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!data[dateKey]) data[dateKey] = [];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>data[dateKey].push(session);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>localStorage.setItem("tikklok", JSON.stringify(data));</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function deleteSession(date, index) {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (!confirm("Weet je zeker dat je deze sessie wilt verwijderen?")) return;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let data = JSON.parse(localStorage.getItem("tikklok") || "{}");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>data[date].splice(index, 1);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (data[date].length === 0) delete data[date];</p>
+<p class="p1"><span class="Apple-converted-space">      </span>localStorage.setItem("tikklok", JSON.stringify(data));</p>
+<p class="p1"><span class="Apple-converted-space">      </span>showAllSessions();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>showTotals();</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function clearAllData() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>if (confirm("Weet je zeker dat je alle data wilt wissen?")) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>localStorage.removeItem("tikklok");</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById("sessies").innerHTML = "";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById("totaal").innerHTML = "";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>document.getElementById("log").innerHTML = "";</p>
+<p class="p1"><span class="Apple-converted-space">        </span>alert("Alle data is gewist.");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function showTotals() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const totaalDiv = document.getElementById("totaal");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>totaalDiv.innerHTML = "&lt;h2&gt;📊 Overzicht&lt;/h2&gt;";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>const data = JSON.parse(localStorage.getItem("tikklok") || "{}");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const now = new Date();</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const todayKey = now.toISOString().split("T")[0];</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>let today = 0;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let week = 0;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let month = 0;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>for (const [date, sessions] of Object.entries(data)) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const d = new Date(date);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const total = sessions.reduce((a, b) =&gt; a + b.netto, 0);</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (date === todayKey) today += total;</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>const sameMonth = d.getMonth() === now.getMonth() &amp;&amp; d.getFullYear() === now.getFullYear();</p>
+<p class="p1"><span class="Apple-converted-space">        </span>const startOfWeek = new Date(now);</p>
+<p class="p1"><span class="Apple-converted-space">        </span>startOfWeek.setDate(now.getDate() - now.getDay());</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (sameMonth) month += total;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>if (d &gt;= startOfWeek &amp;&amp; d &lt;= now) week += total;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>totaalDiv.innerHTML += `&lt;p&gt;&lt;b&gt;Vandaag:&lt;/b&gt; ${formatTime(today)}&lt;/p&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>totaalDiv.innerHTML += `&lt;p&gt;&lt;b&gt;Deze week:&lt;/b&gt; ${formatTime(week)}&lt;/p&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>totaalDiv.innerHTML += `&lt;p&gt;&lt;b&gt;Deze maand:&lt;/b&gt; ${formatTime(month)}&lt;/p&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function showAllSessions() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const sessiesDiv = document.getElementById("sessies");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>sessiesDiv.innerHTML = "&lt;h2&gt;📅 Alle sessies&lt;/h2&gt;";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const data = JSON.parse(localStorage.getItem("tikklok") || "{}");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let html = "";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>Object.entries(data).sort().reverse().forEach(([date, sessions]) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>html += `&lt;h3&gt;${date}&lt;/h3&gt;&lt;table&gt;&lt;tr&gt;&lt;th&gt;Start&lt;/th&gt;&lt;th&gt;Stop&lt;/th&gt;&lt;th&gt;Pauzes&lt;/th&gt;&lt;th&gt;Netto&lt;/th&gt;&lt;th&gt;Actie&lt;/th&gt;&lt;/tr&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>sessions.forEach((s, i) =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">          </span>const pauseText = s.breaks.map(b =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const st = new Date(b.start).toLocaleTimeString();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const en = new Date(b.end).toLocaleTimeString();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const dur = formatTime(new Date(b.end) - new Date(b.start));</p>
+<p class="p1"><span class="Apple-converted-space">            </span>return `${st}-${en} (${dur})`;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>}).join("&lt;br&gt;");</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">          </span>html += `&lt;tr&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;td&gt;${new Date(s.start).toLocaleTimeString()}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;td&gt;${new Date(s.end).toLocaleTimeString()}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;td&gt;${pauseText || '-'}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;td&gt;${formatTime(s.netto)}&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">            </span>&lt;td&gt;&lt;button class="delete-btn" onclick="deleteSession('${date}', ${i})"&gt;🗑️ Verwijder&lt;/button&gt;&lt;/td&gt;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>&lt;/tr&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p1"><span class="Apple-converted-space">        </span>html += `&lt;/table&gt;`;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>});</p>
+<p class="p1"><span class="Apple-converted-space">      </span>sessiesDiv.innerHTML += html;</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>function exportCSV() {</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const data = JSON.parse(localStorage.getItem("tikklok") || "{}");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>let csv = "Datum,Start,Stop,Pauzes,Netto\\n";</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>for (const [date, sessions] of Object.entries(data)) {</p>
+<p class="p1"><span class="Apple-converted-space">        </span>sessions.forEach(s =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">          </span>const pauseText = s.breaks.map(b =&gt; {</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const st = new Date(b.start).toLocaleTimeString();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const en = new Date(b.end).toLocaleTimeString();</p>
+<p class="p1"><span class="Apple-converted-space">            </span>const dur = formatTime(new Date(b.end) - new Date(b.start));</p>
+<p class="p1"><span class="Apple-converted-space">            </span>return `${st}-${en} (${dur})`;</p>
+<p class="p1"><span class="Apple-converted-space">          </span>}).join(" | ");</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">          </span>csv += `${date},${new Date(s.start).toLocaleTimeString()},${new Date(s.end).toLocaleTimeString()},"${pauseText}",${formatTime(s.netto)}\\n`;</p>
+<p class="p1"><span class="Apple-converted-space">        </span>});</p>
+<p class="p1"><span class="Apple-converted-space">      </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">      </span>const blob = new Blob([csv], { type: 'text/csv' });</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const url = URL.createObjectURL(blob);</p>
+<p class="p1"><span class="Apple-converted-space">      </span>const a = document.createElement("a");</p>
+<p class="p1"><span class="Apple-converted-space">      </span>a.href = url;</p>
+<p class="p1"><span class="Apple-converted-space">      </span>a.download = "tikklok_export.csv";</p>
+<p class="p1"><span class="Apple-converted-space">      </span>a.click();</p>
+<p class="p1"><span class="Apple-converted-space">    </span>}</p>
+<p class="p2"><br></p>
+<p class="p1"><span class="Apple-converted-space">    </span>showTotals();</p>
+<p class="p1"><span class="Apple-converted-space">  </span>&lt;/script&gt;</p>
+<p class="p1">&lt;/body&gt;</p>
+<p class="p1">&lt;/html&gt;</p>
+</body>
+</html>
