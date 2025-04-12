@@ -45,15 +45,15 @@
 
   <div class="stats">
     <p><strong>Vandaag:</strong> <span id="todayTime">0u 0m 0s</span></p>
+    <p><strong>Pauze vandaag:</strong> <span id="pauseTime">0m 0s</span></p>
     <p><strong>Deze week:</strong> <span id="weekTime">0u 0m 0s</span></p>
     <p><strong>Deze maand:</strong> <span id="monthTime">0u 0m 0s</span></p>
   </div>
 
   <script>
     let startTime = null;
-    let totalWork = 0;
-    let pauseStart = null;
     let totalPause = 0;
+    let pauseStart = null;
 
     const startBtn = document.getElementById('startBtn');
     const pauzeBtn = document.getElementById('pauzeBtn');
@@ -61,6 +61,7 @@
     const exportBtn = document.getElementById('exportBtn');
 
     const todayTime = document.getElementById('todayTime');
+    const pauseTime = document.getElementById('pauseTime');
     const weekTime = document.getElementById('weekTime');
     const monthTime = document.getElementById('monthTime');
 
@@ -78,6 +79,13 @@
       return `${hrs}u ${mins}m ${secs}s`;
     }
 
+    function formatMinutes(ms) {
+      const totalSecs = Math.floor(ms / 1000);
+      const mins = Math.floor(totalSecs / 60);
+      const secs = totalSecs % 60;
+      return `${mins}m ${secs}s`;
+    }
+
     function updateDisplay() {
       const now = new Date();
       const todayKey = now.toISOString().slice(0,10);
@@ -87,6 +95,7 @@
       todayTime.textContent = format(storage[todayKey] || 0);
       weekTime.textContent = format(storage[weekKey] || 0);
       monthTime.textContent = format(storage[monthKey] || 0);
+      pauseTime.textContent = formatMinutes(storage["pauze_" + todayKey] || 0);
     }
 
     function getWeek(d) {
@@ -108,9 +117,15 @@
 
     pauzeBtn.onclick = () => {
       if (pauseStart) {
-        totalPause += Date.now() - pauseStart;
+        const thisPause = Date.now() - pauseStart;
+        totalPause += thisPause;
         pauseStart = null;
         pauzeBtn.textContent = "Pauze";
+
+        const todayKey = new Date().toISOString().slice(0,10);
+        storage["pauze_" + todayKey] = (storage["pauze_" + todayKey] || 0) + thisPause;
+        saveData();
+        updateDisplay();
       } else {
         pauseStart = Date.now();
         pauzeBtn.textContent = "Hervat";
@@ -120,10 +135,15 @@
     stopBtn.onclick = () => {
       let endTime = Date.now();
       if (pauseStart) {
-        totalPause += endTime - pauseStart;
+        const thisPause = endTime - pauseStart;
+        totalPause += thisPause;
         pauseStart = null;
+
+        const todayKey = new Date().toISOString().slice(0,10);
+        storage["pauze_" + todayKey] = (storage["pauze_" + todayKey] || 0) + thisPause;
       }
-      let workTime = endTime - startTime - totalPause;
+
+      const workTime = endTime - startTime - totalPause;
       const now = new Date();
       const todayKey = now.toISOString().slice(0,10);
       const weekKey = now.getFullYear() + "-w" + getWeek(now);
@@ -143,9 +163,12 @@
     };
 
     exportBtn.onclick = () => {
-      let csv = "Datum,Gewerkte tijd\n";
-      Object.keys(storage).filter(key => key.match(/^\d{4}-\d{2}-\d{2}$/)).forEach(key => {
-        csv += `${key},${format(storage[key])}\n`;
+      let csv = "Datum,Gewerkte tijd,Pauzetijd\n";
+      const dagen = Object.keys(storage).filter(key => key.match(/^\d{4}-\d{2}-\d{2}$/));
+      dagen.forEach(key => {
+        const werk = format(storage[key] || 0);
+        const pauze = formatMinutes(storage["pauze_" + key] || 0);
+        csv += `${key},${werk},${pauze}\n`;
       });
 
       const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
