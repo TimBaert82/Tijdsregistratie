@@ -166,6 +166,10 @@
     exportBtn.onclick = () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
+
+      // Voorkom vreemde tekens door een ander lettertype te gebruiken.
+      doc.setFont("helvetica");
+
       doc.setFontSize(16);
       doc.text("Tikklok Overzicht", 20, 20);
       
