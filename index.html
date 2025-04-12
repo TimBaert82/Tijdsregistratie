@@ -1,1 +1,165 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tikklok</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background: #f9f9f9;
+      color: #333;
+      text-align: center;
+    }
+    button {
+      margin: 1rem;
+      padding: 1rem 2rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 10px;
+      background-color: #4CAF50;
+      color: white;
+      cursor: pointer;
+    }
+    button:disabled {
+      background-color: #aaa;
+      cursor: not-allowed;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 2rem;
+    }
+    .stats {
+      margin-top: 2rem;
+      font-size: 1.2rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>🕒 Tikklok</h1>
+  <button id="startBtn">Start</button>
+  <button id="pauzeBtn" disabled>Pauze</button>
+  <button id="stopBtn" disabled>Stop</button>
+  <button id="exportBtn">Exporteren naar CSV</button>
 
+  <div class="stats">
+    <p><strong>Vandaag:</strong> <span id="todayTime">0u 0m 0s</span></p>
+    <p><strong>Deze week:</strong> <span id="weekTime">0u 0m 0s</span></p>
+    <p><strong>Deze maand:</strong> <span id="monthTime">0u 0m 0s</span></p>
+  </div>
+
+  <script>
+    let startTime = null;
+    let totalWork = 0;
+    let pauseStart = null;
+    let totalPause = 0;
+
+    const startBtn = document.getElementById('startBtn');
+    const pauzeBtn = document.getElementById('pauzeBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const exportBtn = document.getElementById('exportBtn');
+
+    const todayTime = document.getElementById('todayTime');
+    const weekTime = document.getElementById('weekTime');
+    const monthTime = document.getElementById('monthTime');
+
+    let storage = JSON.parse(localStorage.getItem("tikklokData") || "{}");
+
+    function saveData() {
+      localStorage.setItem("tikklokData", JSON.stringify(storage));
+    }
+
+    function format(ms) {
+      const totalSecs = Math.floor(ms / 1000);
+      const hrs = Math.floor(totalSecs / 3600);
+      const mins = Math.floor((totalSecs % 3600) / 60);
+      const secs = totalSecs % 60;
+      return `${hrs}u ${mins}m ${secs}s`;
+    }
+
+    function updateDisplay() {
+      const now = new Date();
+      const todayKey = now.toISOString().slice(0,10);
+      const weekKey = now.getFullYear() + "-w" + getWeek(now);
+      const monthKey = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, "0");
+
+      todayTime.textContent = format(storage[todayKey] || 0);
+      weekTime.textContent = format(storage[weekKey] || 0);
+      monthTime.textContent = format(storage[monthKey] || 0);
+    }
+
+    function getWeek(d) {
+      d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    }
+
+    startBtn.onclick = () => {
+      startTime = Date.now();
+      totalPause = 0;
+      pauseStart = null;
+      startBtn.disabled = true;
+      pauzeBtn.disabled = false;
+      stopBtn.disabled = false;
+    };
+
+    pauzeBtn.onclick = () => {
+      if (pauseStart) {
+        totalPause += Date.now() - pauseStart;
+        pauseStart = null;
+        pauzeBtn.textContent = "Pauze";
+      } else {
+        pauseStart = Date.now();
+        pauzeBtn.textContent = "Hervat";
+      }
+    };
+
+    stopBtn.onclick = () => {
+      let endTime = Date.now();
+      if (pauseStart) {
+        totalPause += endTime - pauseStart;
+        pauseStart = null;
+      }
+      let workTime = endTime - startTime - totalPause;
+      const now = new Date();
+      const todayKey = now.toISOString().slice(0,10);
+      const weekKey = now.getFullYear() + "-w" + getWeek(now);
+      const monthKey = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, "0");
+
+      storage[todayKey] = (storage[todayKey] || 0) + workTime;
+      storage[weekKey] = (storage[weekKey] || 0) + workTime;
+      storage[monthKey] = (storage[monthKey] || 0) + workTime;
+
+      saveData();
+      updateDisplay();
+
+      startBtn.disabled = false;
+      pauzeBtn.disabled = true;
+      stopBtn.disabled = true;
+      pauzeBtn.textContent = "Pauze";
+    };
+
+    exportBtn.onclick = () => {
+      let csv = "Datum,Gewerkte tijd\n";
+      Object.keys(storage).filter(key => key.match(/^\d{4}-\d{2}-\d{2}$/)).forEach(key => {
+        csv += `${key},${format(storage[key])}\n`;
+      });
+
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", "tikklok_gegevens.csv");
+      link.style.display = "none";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+
+    updateDisplay();
+  </script>
+</body>
+</html>
