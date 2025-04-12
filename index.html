@@ -166,13 +166,13 @@
     exportBtn.onclick = () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-
-      // Voorkom vreemde tekens door een ander lettertype te gebruiken.
+      
+      // Zorg ervoor dat de lettertypes correct worden ingesteld om vreemde tekens te voorkomen
       doc.setFont("helvetica");
 
       doc.setFontSize(16);
       doc.text("Tikklok Overzicht", 20, 20);
-      
+
       let yOffset = 30;
 
       // Dagelijks overzicht
