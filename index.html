@@ -35,13 +35,14 @@
       font-size: 1.2rem;
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
   <h1>🕒 Tikklok</h1>
   <button id="startBtn">Start</button>
   <button id="pauzeBtn" disabled>Pauze</button>
   <button id="stopBtn" disabled>Stop</button>
-  <button id="exportBtn">Exporteren naar CSV</button>
+  <button id="exportBtn">Genereer PDF</button>
 
   <div class="stats">
     <p><strong>Vandaag:</strong> <span id="todayTime">0u 0m 0s</span></p>
@@ -163,23 +164,37 @@
     };
 
     exportBtn.onclick = () => {
-      let csv = "Datum,Gewerkte tijd,Pauzetijd\n";
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.setFontSize(16);
+      doc.text("📅 Tikklok Overzicht", 20, 20);
+      
+      let yOffset = 30;
+
+      // Dagelijks overzicht
+      doc.setFontSize(12);
+      doc.text("🔹 Dagelijks overzicht:", 20, yOffset);
+      yOffset += 10;
       const dagen = Object.keys(storage).filter(key => key.match(/^\d{4}-\d{2}-\d{2}$/));
       dagen.forEach(key => {
         const werk = format(storage[key] || 0);
         const pauze = formatMinutes(storage["pauze_" + key] || 0);
-        csv += `${key},${werk},${pauze}\n`;
+        doc.text(`${key}: ${werk} gewerkt – ${pauze} pauze`, 20, yOffset);
+        yOffset += 10;
       });
 
-      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.setAttribute("href", url);
-      link.setAttribute("download", "tikklok_gegevens.csv");
-      link.style.display = "none";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Totale werktijd
+      doc.setFontSize(14);
+      doc.text("🔹 Totale werktijd:", 20, yOffset);
+      yOffset += 10;
+      doc.text(`Vandaag: ${todayTime.textContent}`, 20, yOffset);
+      yOffset += 10;
+      doc.text(`Deze week: ${weekTime.textContent}`, 20, yOffset);
+      yOffset += 10;
+      doc.text(`Deze maand: ${monthTime.textContent}`, 20, yOffset);
+      
+      // PDF opslaan
+      doc.save("tikklok_overzicht.pdf");
     };
 
     updateDisplay();
