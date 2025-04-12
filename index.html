@@ -166,10 +166,8 @@
     exportBtn.onclick = () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-      
-      // Zorg ervoor dat de lettertypes correct worden ingesteld om vreemde tekens te voorkomen
-      doc.setFont("helvetica");
 
+      doc.setFont("courier", "normal");
       doc.setFontSize(16);
       doc.text("Tikklok Overzicht", 20, 20);
 
@@ -177,7 +175,7 @@
 
       // Dagelijks overzicht
       doc.setFontSize(12);
-      doc.text("🔹 Dagelijks overzicht:", 20, yOffset);
+      doc.text("Dagelijks overzicht:", 20, yOffset);
       yOffset += 10;
       const dagen = Object.keys(storage).filter(key => key.match(/^\d{4}-\d{2}-\d{2}$/));
       dagen.forEach(key => {
@@ -189,15 +187,16 @@
 
       // Totale werktijd
       doc.setFontSize(14);
-      doc.text("🔹 Totale werktijd:", 20, yOffset);
+      yOffset += 5;
+      doc.text("Totale werktijd:", 20, yOffset);
       yOffset += 10;
+      doc.setFontSize(12);
       doc.text(`Vandaag: ${todayTime.textContent}`, 20, yOffset);
       yOffset += 10;
       doc.text(`Deze week: ${weekTime.textContent}`, 20, yOffset);
       yOffset += 10;
       doc.text(`Deze maand: ${monthTime.textContent}`, 20, yOffset);
-      
-      // PDF opslaan
+
       doc.save("tikklok_overzicht.pdf");
     };
 
