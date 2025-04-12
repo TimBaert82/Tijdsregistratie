@@ -34,6 +34,16 @@
       margin-top: 2rem;
       font-size: 1.2rem;
     }
+    .week-overview {
+      text-align: left;
+      max-width: 500px;
+      margin: 2rem auto 0;
+      font-size: 1rem;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -48,7 +58,11 @@
     <p><strong>Vandaag:</strong> <span id="todayTime">0u 0m 0s</span></p>
     <p><strong>Pauze vandaag:</strong> <span id="pauseTime">0m 0s</span></p>
     <p><strong>Deze week:</strong> <span id="weekTime">0u 0m 0s</span></p>
-    <p><strong>Deze maand:</strong> <span id="monthTime">0u 0m 0s</span></p>
+  </div>
+
+  <div class="week-overview" id="weekOverview">
+    <h3>📅 Overzicht per week</h3>
+    <ul id="weekList"></ul>
   </div>
 
   <script>
@@ -64,7 +78,7 @@
     const todayTime = document.getElementById('todayTime');
     const pauseTime = document.getElementById('pauseTime');
     const weekTime = document.getElementById('weekTime');
-    const monthTime = document.getElementById('monthTime');
+    const weekList = document.getElementById('weekList');
 
     let storage = JSON.parse(localStorage.getItem("tikklokData") || "{}");
 
@@ -87,24 +101,38 @@
       return `${mins}m ${secs}s`;
     }
 
-    function updateDisplay() {
-      const now = new Date();
-      const todayKey = now.toISOString().slice(0,10);
-      const weekKey = now.getFullYear() + "-w" + getWeek(now);
-      const monthKey = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, "0");
-
-      todayTime.textContent = format(storage[todayKey] || 0);
-      weekTime.textContent = format(storage[weekKey] || 0);
-      monthTime.textContent = format(storage[monthKey] || 0);
-      pauseTime.textContent = formatMinutes(storage["pauze_" + todayKey] || 0);
-    }
-
     function getWeek(d) {
       d = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
       const dayNum = d.getUTCDay() || 7;
       d.setUTCDate(d.getUTCDate() + 4 - dayNum);
       const yearStart = new Date(Date.UTC(d.getUTCFullYear(),0,1));
       return Math.ceil((((d - yearStart) / 86400000) + 1)/7);
+    }
+
+    function updateDisplay() {
+      const now = new Date();
+      const todayKey = now.toISOString().slice(0,10);
+      const weekKey = now.getFullYear() + "-w" + getWeek(now);
+
+      todayTime.textContent = format(storage[todayKey] || 0);
+      weekTime.textContent = format(storage[weekKey] || 0);
+      pauseTime.textContent = formatMinutes(storage["pauze_" + todayKey] || 0);
+
+      // Week overzicht
+      const overzicht = {};
+      for (const key in storage) {
+        if (key.includes("-w")) {
+          overzicht[key] = storage[key];
+        }
+      }
+      weekList.innerHTML = "";
+      Object.entries(overzicht)
+        .sort(([a], [b]) => b.localeCompare(a)) // nieuwste eerst
+        .forEach(([week, tijd]) => {
+          const li = document.createElement("li");
+          li.textContent = `${week}: ${format(tijd)} gewerkt`;
+          weekList.appendChild(li);
+        });
     }
 
     startBtn.onclick = () => {
@@ -148,11 +176,9 @@
       const now = new Date();
       const todayKey = now.toISOString().slice(0,10);
       const weekKey = now.getFullYear() + "-w" + getWeek(now);
-      const monthKey = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2, "0");
 
       storage[todayKey] = (storage[todayKey] || 0) + workTime;
       storage[weekKey] = (storage[weekKey] || 0) + workTime;
-      storage[monthKey] = (storage[monthKey] || 0) + workTime;
 
       saveData();
       updateDisplay();
@@ -173,29 +199,35 @@
 
       let yOffset = 30;
 
-      // Dagelijks overzicht
       doc.setFontSize(12);
       doc.text("Dagelijks overzicht:", 20, yOffset);
       yOffset += 10;
-      const dagen = Object.keys(storage).filter(key => key.match(/^\d{4}-\d{2}-\d{2}$/));
-      dagen.forEach(key => {
+      const dagen = Object.keys(storage).filter(k => k.match(/^\d{4}-\d{2}-\d{2}$/));
+      dagen.sort().forEach(key => {
         const werk = format(storage[key] || 0);
         const pauze = formatMinutes(storage["pauze_" + key] || 0);
         doc.text(`${key}: ${werk} gewerkt – ${pauze} pauze`, 20, yOffset);
         yOffset += 10;
       });
 
-      // Totale werktijd
-      doc.setFontSize(14);
       yOffset += 5;
+      doc.setFontSize(12);
+      doc.text("Wekelijks overzicht:", 20, yOffset);
+      yOffset += 10;
+      const weken = Object.entries(storage).filter(([k, _]) => k.includes("-w"));
+      weken.sort((a, b) => b[0].localeCompare(a[0])).forEach(([week, tijd]) => {
+        doc.text(`${week}: ${format(tijd)} gewerkt`, 20, yOffset);
+        yOffset += 10;
+      });
+
+      yOffset += 5;
+      doc.setFontSize(14);
       doc.text("Totale werktijd:", 20, yOffset);
       yOffset += 10;
       doc.setFontSize(12);
       doc.text(`Vandaag: ${todayTime.textContent}`, 20, yOffset);
       yOffset += 10;
       doc.text(`Deze week: ${weekTime.textContent}`, 20, yOffset);
-      yOffset += 10;
-      doc.text(`Deze maand: ${monthTime.textContent}`, 20, yOffset);
 
       doc.save("tikklok_overzicht.pdf");
     };
