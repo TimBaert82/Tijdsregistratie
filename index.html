@@ -44,6 +44,11 @@
       border-radius: 10px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
+    #liveTime, #livePause {
+      font-size: 1.2rem;
+      margin-top: 1rem;
+      color: #444;
+    }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
@@ -54,9 +59,10 @@
   <button id="stopBtn" disabled>Stop</button>
   <button id="exportBtn">Genereer PDF</button>
 
+  <div id="liveTime">Bezig sinds: 0u 0m 0s</div>
   <div class="stats">
     <p><strong>Vandaag:</strong> <span id="todayTime">0u 0m 0s</span></p>
-    <p><strong>Pauze vandaag:</strong> <span id="pauseTime">0m 0s</span></p>
+    <p><strong>Pauze vandaag:</strong> <span id="pauseTime">0m 0s</span> <span id="livePause"></span></p>
     <p><strong>Deze week:</strong> <span id="weekTime">0u 0m 0s</span></p>
   </div>
 
@@ -64,11 +70,13 @@
     <h3>📅 Overzicht per week</h3>
     <ul id="weekList"></ul>
   </div>
-
+    
   <script>
     let startTime = null;
     let totalPause = 0;
     let pauseStart = null;
+    let liveInterval = null;
+    let pauseInterval = null;
 
     const startBtn = document.getElementById('startBtn');
     const pauzeBtn = document.getElementById('pauzeBtn');
@@ -79,6 +87,8 @@
     const pauseTime = document.getElementById('pauseTime');
     const weekTime = document.getElementById('weekTime');
     const weekList = document.getElementById('weekList');
+    const liveTime = document.getElementById('liveTime');
+    const livePause = document.getElementById('livePause');
 
     let storage = JSON.parse(localStorage.getItem("tikklokData") || "{}");
 
@@ -114,11 +124,23 @@
       const todayKey = now.toISOString().slice(0,10);
       const weekKey = now.getFullYear() + "-w" + getWeek(now);
 
-      todayTime.textContent = format(storage[todayKey] || 0);
-      weekTime.textContent = format(storage[weekKey] || 0);
-      pauseTime.textContent = formatMinutes(storage["pauze_" + todayKey] || 0);
+      const worked = storage[todayKey] || 0;
+      const pause = storage["pauze_" + todayKey] || 0;
 
-      // Week overzicht
+      todayTime.textContent = format(worked);
+      pauseTime.textContent = formatMinutes(pause);
+
+      const weekTotal = Object.keys(storage).filter(k => k.match(/^\d{4}-\d{2}-\d{2}$/)).reduce((sum, key) => {
+        if (getWeek(new Date(key)) === getWeek(now)) {
+          const work = storage[key] || 0;
+          const pauze = storage["pauze_" + key] || 0;
+          return sum + work + pauze;
+        }
+        return sum;
+      }, 0);
+
+      weekTime.textContent = format(weekTotal);
+
       const overzicht = {};
       for (const key in storage) {
         if (key.includes("-w")) {
@@ -127,12 +149,46 @@
       }
       weekList.innerHTML = "";
       Object.entries(overzicht)
-        .sort(([a], [b]) => b.localeCompare(a)) // nieuwste eerst
+        .sort(([a], [b]) => b.localeCompare(a))
         .forEach(([week, tijd]) => {
+          let weekPause = 0;
+          const jaar = parseInt(week.split("-w")[0]);
+          const weekNr = parseInt(week.split("-w")[1]);
+          Object.keys(storage).forEach(k => {
+            if (k.match(/^\d{4}-\d{2}-\d{2}$/)) {
+              const d = new Date(k);
+              const wk = getWeek(d);
+              if (wk === weekNr && d.getFullYear() === jaar) {
+                weekPause += storage["pauze_" + k] || 0;
+              }
+            }
+          });
+          const totaal = tijd + weekPause;
           const li = document.createElement("li");
-          li.textContent = `${week}: ${format(tijd)} gewerkt`;
+          li.textContent = `${week}: ${format(totaal)} aanwezig`;
           weekList.appendChild(li);
         });
+    }
+
+    function startLiveTimers() {
+      clearInterval(liveInterval);
+      clearInterval(pauseInterval);
+      liveInterval = setInterval(() => {
+        if (startTime) {
+          const elapsed = Date.now() - startTime - totalPause;
+          liveTime.textContent = "Bezig sinds: " + format(elapsed);
+        }
+      }, 1000);
+    }
+
+    function startLivePauseTimer() {
+      clearInterval(pauseInterval);
+      pauseInterval = setInterval(() => {
+        if (pauseStart) {
+          const elapsed = Date.now() - pauseStart;
+          livePause.textContent = `(+${formatMinutes(elapsed)})`;
+        }
+      }, 1000);
     }
 
     startBtn.onclick = () => {
@@ -142,22 +198,26 @@
       startBtn.disabled = true;
       pauzeBtn.disabled = false;
       stopBtn.disabled = false;
+      livePause.textContent = "";
+      startLiveTimers();
     };
 
     pauzeBtn.onclick = () => {
       if (pauseStart) {
         const thisPause = Date.now() - pauseStart;
         totalPause += thisPause;
-        pauseStart = null;
-        pauzeBtn.textContent = "Pauze";
-
         const todayKey = new Date().toISOString().slice(0,10);
         storage["pauze_" + todayKey] = (storage["pauze_" + todayKey] || 0) + thisPause;
+        pauseStart = null;
+        pauzeBtn.textContent = "Pauze";
+        clearInterval(pauseInterval);
+        livePause.textContent = "";
         saveData();
         updateDisplay();
       } else {
         pauseStart = Date.now();
         pauzeBtn.textContent = "Hervat";
+        startLivePauseTimer();
       }
     };
 
@@ -166,10 +226,11 @@
       if (pauseStart) {
         const thisPause = endTime - pauseStart;
         totalPause += thisPause;
-        pauseStart = null;
-
         const todayKey = new Date().toISOString().slice(0,10);
         storage["pauze_" + todayKey] = (storage["pauze_" + todayKey] || 0) + thisPause;
+        pauseStart = null;
+        livePause.textContent = "";
+        clearInterval(pauseInterval);
       }
 
       const workTime = endTime - startTime - totalPause;
@@ -187,47 +248,55 @@
       pauzeBtn.disabled = true;
       stopBtn.disabled = true;
       pauzeBtn.textContent = "Pauze";
+      clearInterval(liveInterval);
+      liveTime.textContent = "Bezig sinds: 0u 0m 0s";
     };
 
     exportBtn.onclick = () => {
       const { jsPDF } = window.jspdf;
       const doc = new jsPDF();
-
       doc.setFont("helvetica", "normal");
       doc.setFontSize(16);
       doc.text("Tikklok Overzicht", 20, 20);
-
       let yOffset = 30;
 
       doc.setFontSize(12);
       doc.text("Dagelijks overzicht:", 20, yOffset);
       yOffset += 10;
+
       const dagen = Object.keys(storage).filter(k => k.match(/^\d{4}-\d{2}-\d{2}$/));
       dagen.sort().forEach(key => {
-        const werk = format(storage[key] || 0);
-        const pauze = formatMinutes(storage["pauze_" + key] || 0);
-        doc.text(`${key}: ${werk} gewerkt – ${pauze} pauze`, 20, yOffset);
-        yOffset += 10;
+        const worked = storage[key] || 0;
+        const pause = storage["pauze_" + key] || 0;
+        const total = worked + pause;
+        doc.text(`${key}:`, 20, yOffset); yOffset += 7;
+        doc.text(`  - Gewerkt: ${format(worked)}`, 20, yOffset); yOffset += 7;
+        doc.text(`  - Pauze:   ${formatMinutes(pause)}`, 20, yOffset); yOffset += 7;
+        doc.text(`  - Totaal:  ${format(total)}`, 20, yOffset); yOffset += 10;
       });
 
-      yOffset += 5;
       doc.setFontSize(12);
       doc.text("Wekelijks overzicht:", 20, yOffset);
       yOffset += 10;
-      const weken = Object.entries(storage).filter(([k, _]) => k.includes("-w"));
-      weken.sort((a, b) => b[0].localeCompare(a[0])).forEach(([week, tijd]) => {
-        doc.text(`${week}: ${format(tijd)} gewerkt`, 20, yOffset);
+
+      const weeks = Object.entries(storage).filter(([k]) => k.includes("-w"));
+      weeks.sort((a,b) => a[0].localeCompare(b[0]));
+      weeks.forEach(([weekKey, workTime]) => {
+        let totalPause = 0;
+        const year = parseInt(weekKey.split("-w")[0]);
+        const weekNr = parseInt(weekKey.split("-w")[1]);
+        Object.keys(storage).forEach(key => {
+          if (key.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const date = new Date(key);
+            if (date.getFullYear() === year && getWeek(date) === weekNr) {
+              totalPause += storage["pauze_" + key] || 0;
+            }
+          }
+        });
+        const totaal = workTime + totalPause;
+        doc.text(`${weekKey}: ${format(totaal)} aanwezig`, 20, yOffset);
         yOffset += 10;
       });
-
-      yOffset += 5;
-      doc.setFontSize(14);
-      doc.text("Totale werktijd:", 20, yOffset);
-      yOffset += 10;
-      doc.setFontSize(12);
-      doc.text(`Vandaag: ${todayTime.textContent}`, 20, yOffset);
-      yOffset += 10;
-      doc.text(`Deze week: ${weekTime.textContent}`, 20, yOffset);
 
       doc.save("tikklok_overzicht.pdf");
     };
