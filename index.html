@@ -70,8 +70,8 @@
 let startTime = null;
 let totalPause = 0;
 let pauseStart = null;
-let liveInterval = null;
-let pauseInterval = null;
+let liveTimer = null;
+let pauseTimer = null;
 
 const startBtn = document.getElementById('startBtn');
 const pauzeBtn = document.getElementById('pauzeBtn');
@@ -166,6 +166,13 @@ function updateDisplay() {
     });
 }
 
+function startLiveTimer() {
+  clearInterval(liveTimer);
+  liveTimer = setInterval(() => {
+    updateDisplay();
+  }, 1000);
+}
+
 startBtn.onclick = () => {
   startTime = Date.now();
   totalPause = 0;
@@ -173,6 +180,7 @@ startBtn.onclick = () => {
   startBtn.disabled = true;
   pauzeBtn.disabled = false;
   stopBtn.disabled = false;
+  startLiveTimer();
 };
 
 pauzeBtn.onclick = () => {
@@ -200,22 +208,63 @@ stopBtn.onclick = () => {
     storage["pauze_" + todayKey] = (storage["pauze_" + todayKey] || 0) + thisPause;
     pauseStart = null;
   }
-
   const workTime = endTime - startTime - totalPause;
   const now = new Date();
   const todayKey = now.toISOString().slice(0,10);
   const weekKey = now.getFullYear() + "-w" + getWeek(now);
-
   storage[todayKey] = (storage[todayKey] || 0) + workTime;
   storage[weekKey] = (storage[weekKey] || 0) + workTime;
-
   saveData();
   updateDisplay();
-
   startBtn.disabled = false;
   pauzeBtn.disabled = true;
   stopBtn.disabled = true;
   pauzeBtn.textContent = "Pauze";
+  clearInterval(liveTimer);
+};
+
+exportBtn.onclick = () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(16);
+  doc.text("Tikklok Overzicht", 20, 20);
+  let yOffset = 30;
+  doc.setFontSize(12);
+  doc.text("Dagelijks overzicht:", 20, yOffset);
+  yOffset += 10;
+  const dagen = Object.keys(storage).filter(k => k.match(/^\d{4}-\d{2}-\d{2}$/));
+  dagen.sort().forEach(key => {
+    const worked = storage[key] || 0;
+    const pause = storage["pauze_" + key] || 0;
+    const total = worked + pause;
+    doc.text(`${key}:`, 20, yOffset); yOffset += 6;
+    doc.text(`  - Gewerkt: ${format(worked)}`, 20, yOffset); yOffset += 6;
+    doc.text(`  - Pauze:   ${formatMinutes(pause)}`, 20, yOffset); yOffset += 6;
+    doc.text(`  - Totaal:  ${format(total)}`, 20, yOffset); yOffset += 10;
+  });
+  doc.setFontSize(12);
+  doc.text("Wekelijks overzicht:", 20, yOffset);
+  yOffset += 10;
+  const weeks = Object.entries(storage).filter(([k]) => k.includes("-w"));
+  weeks.sort((a,b) => a[0].localeCompare(b[0]));
+  weeks.forEach(([weekKey, workTime]) => {
+    let totalPause = 0;
+    const year = parseInt(weekKey.split("-w")[0]);
+    const weekNr = parseInt(weekKey.split("-w")[1]);
+    Object.keys(storage).forEach(key => {
+      if (key.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        const date = new Date(key);
+        if (date.getFullYear() === year && getWeek(date) === weekNr) {
+          totalPause += storage["pauze_" + key] || 0;
+        }
+      }
+    });
+    const totaal = workTime + totalPause;
+    doc.text(`${weekKey}: ${format(totaal)} aanwezig`, 20, yOffset);
+    yOffset += 10;
+  });
+  doc.save("tikklok_overzicht.pdf");
 };
 
 updateDisplay();
